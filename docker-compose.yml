@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:latest
+    container_name: postgres_db
+    environment:
+      POSTGRES_DB: auto_play_tcg_pocket
+      POSTGRES_USER: developer
+      POSTGRES_PASSWORD: developer
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data  # ホストディレクトリをマウントして永続化
+    networks:
+      - app_network
+
+networks:
+  app_network:
