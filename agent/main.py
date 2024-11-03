@@ -1,64 +1,109 @@
 import time
-import pyautogui
-import pytesseract
-from PIL import Image, ImageFilter
-import numpy as np
-import cv2
+from actions.screen_recognition import capture_screen, extract_and_process_region_for_text, recognize_text  # 画像認識系をscreen_recognitionに移動
+from domains.battle import Battle
+from domains.field import BattleField
+from domains.player import Opponent, Player
 
-from agent.domains.battle import Battle
+# バトルとプレイヤーの初期化
+battle = Battle(first_player="player")
+player = Player(name="自分")
+oppnent = Opponent(name="相手")
+battle_field = BattleField()
 
+def waiting():
+    """対戦相手を探している状態の処理"""
+    print("Waiting for opponent...")
+    # 必要ならばこの状態での処理を追加
+
+def init_battle(is_player_first):
+    """対戦開始の初期化処理"""
+    global battle, player, opponent, battle_field
+    battle = Battle(first_player="player" if is_player_first else "opponent")  # バトルの再初期化
+    player = Player(name="自分")  # プレイヤーの再初期化
+    opponent = Opponent(name="相手")  # 相手の再初期化
+    battle_field = BattleField()  # バトルフィールドの再初期化
+    print(f"Battle initialized. Player goes first: {is_player_first}")
+
+
+def my_turn():
+    """自分のターンの処理"""
+    print("Executing my turn...")
+    # 戦場の情報を更新し、アクションを実行するための手順をここで記述します
+    # 例：エネルギーのアタッチ、サポート・アイテムの使用、特性やわざの使用など
+    # player.attach_energy() や player.use_support() などのメソッドを使う
 
 def main():
-    # スクリーンショットを撮影
-    screenshot = capture_screen().convert("RGB")
-    init_text_screenshot = extract_and_process_region_for_text(screenshot, 0, 235, 430, 265)
-    init_text = recognize_text(init_text_screenshot, 'init_text.png')
-    print(f"Recognized text: {init_text}")
-
-    # 対戦相手が見つかった場合、Battleインスタンスを作成
-    if "対戦相手が見つかりました" in init_text:
-        print("Battle found! Initializing battle...")
-        battle = Battle()
-        print(battle)  # Battleインスタンスの初期状態を確認
+    screenshot = capture_screen()
+    state = detect_state(screenshot)
+    if state == "waiting":
+        waiting()
+    elif state == "init_battle_player_first":
+        init_battle(is_player_first=True)
+    elif state == "init_battle_opponent_first":
+        init_battle(is_player_first=False)
+    elif state == "my_turn":
+        my_turn()
     else:
-        print("Waiting for opponent...")
+        print("Unknown state detected")
+    # """メインの処理ループ"""
+    # while True:
+    #     screenshot = capture_screen()
+    #     state = detect_state(screenshot)
 
-def capture_screen(region=(1500, 50, 430, 1000)):
+    #     if state == "waiting":
+    #         waiting()
+    #     elif state == "init_battle_player_first":
+    #         init_battle(is_player_first=True)
+    #     elif state == "init_battle_opponent_first":
+    #         init_battle(is_player_first=False)
+    #     elif state == "my_turn":
+    #         my_turn()
+    #     else:
+    #         print("Unknown state detected")
+
+    #     # 4. 一定時間待機して次のスクリーンショット取得まで待つ
+    #     time.sleep(1)  # 1秒ごとにチェック（必要に応じて調整）
+
+def detect_state(screenshot, battle_started=False, setting_up=False):
+    """現在のゲームの状態を検出する
+
+    Args:
+        screenshot: スクリーンショット画像
+        battle_started (bool): バトルがすでに始まっているかどうかのフラグ
     """
-    指定した領域のスクリーンショットを取得
-    region: (x, y, width, height) - スクリーンショットを取得する領域の指定
-    """
-    # 画面の一部をスクリーンショットとして取得
-    screenshot = pyautogui.screenshot(region=region)
-    screenshot.save("app_screenshot.png")
-    return screenshot
+    # バトルがまだ始まっていない場合のみ、初期テキストを確認
+    if not battle_started:
+        init_text_screenshot = extract_and_process_region_for_text(screenshot, 170, 270, 240, 305)
+        init_text = recognize_text(init_text_screenshot, 'init_text.png')
 
-def extract_and_process_region_for_text(screenshot, left, top, right, bottom):
-    # 指定された領域を切り出す
-    region = screenshot.crop((left, top, right, bottom))
+        # 「先攻」または「後攻」の文字を確認して、バトル開始の状態を検出
+        if "先攻" in init_text:
+            return "init_battle_player_first"
+        elif "後攻" in init_text:
+            return "init_battle_opponent_first"
+        else:
+            return "waiting"
+    
+    # バトルが始まっている場合、たねポケモンをバトル場に出してくださいと表示されるまで待つ
+    if battle_started and setting_up:
+        setup_text_screenshot = extract_and_process_region_for_text(screenshot, 100, 200, 500, 250)
+        setup_text = recognize_text(setup_text_screenshot, 'setup_text.png')
 
-    # 色フィルタを適用して黒文字以外を白色に
-    region_np = np.array(region)
-    lower_bound = np.array([0, 0, 0])  # 黒色の下限 (R, G, B)
-    upper_bound = np.array([200, 200, 200])  # 黒色の上限 (R, G, B)
-    mask = cv2.inRange(region_np, lower_bound, upper_bound)
-    filtered_region_np = cv2.bitwise_and(region_np, region_np, mask=mask)
-    filtered_region_np[mask == 0] = [255, 255, 255]  # 黒文字以外を白色にする
-    filtered_region = Image.fromarray(filtered_region_np)
+        if "たねポケモンをバトル場に出してください" in setup_text:
+            return "setting_up"
+        else:
+            return "waiting"
 
-    # シャープネスを軽く強調
-    sharpened_region = filtered_region.filter(ImageFilter.UnsharpMask(radius=2, percent=150))
 
-    return sharpened_region
+    # バトルが始まっている場合、スクリーンショットから現在のターンを検出
+    my_turn_text_screenshot = extract_and_process_region_for_text(screenshot, 100, 200, 500, 250)
+    my_turn_text = recognize_text(my_turn_text_screenshot, 'my_turn_text.png')
 
-def recognize_text(image, save_path, psm=8):
-    # 画像を保存（確認用）
-    image.save(save_path)
+    if "あなたのターンです" in my_turn_text:
+        return "my_turn"
 
-    white_list = "対戦相手を探していますが見つかりた！"
-    custom_config = f'-c tessedit_char_whitelist={white_list} --oem 3 --psm {psm}'
-    text = pytesseract.image_to_string(image, lang="jpn", config=custom_config)
-    return text.strip()
+    # 状態が判定できなかった場合
+    return "unknown"
 
 if __name__ == "__main__":
     main()

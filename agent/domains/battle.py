@@ -1,5 +1,3 @@
-# agent/domains/battle.py
-
 class Battle:
     def __init__(self, first_player="player"):
         self.turn = 1                        # ターン数
@@ -14,7 +12,6 @@ class Battle:
         self.turn += 1
 
     def next_turn(self):
-        """次のターンに移行し、ターンプレイヤーを交代"""
         self.update_turn()
         if self.current_turn_player == "player":
             self.current_turn_player = "opponent"
@@ -43,13 +40,14 @@ class Battle:
             self.result = "draw"
         return self.result
 
-    def reset(self):
+    def reset(self, is_first_player=False):
         """バトルの状態をリセット"""
         self.turn = 1
         self.player_points = 0
         self.opponent_points = 0
         self.result = None
         self.current_turn_player = self.first_player
+        self.first_player = "player" if is_first_player else "opponent"
 
     def __repr__(self):
         return (f"Battle(turn={self.turn}, player_points={self.player_points}, "
