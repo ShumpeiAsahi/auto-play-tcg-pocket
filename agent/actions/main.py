@@ -24,21 +24,8 @@ energy_spot_x = screen_x + 370
 energy_spot_y = screen_y + 770
 
 def click_active_spot():
-    start_x = screen_x + 300
-    start_y = screen_y + 800
-    total_cards = 5
-    spacing = 100
-    index = 0
-    """
-    手札内のカードの位置を計算する
-    index: カードのインデックス（0から始まる）
-    total_cards: 手札にあるカードの総数
-    start_x, start_y: 手札の基準位置
-    spacing: カード間の間隔
-    """
-    # 手札のカードが中央に並ぶように配置を調整
-    offset_x = start_x - (spacing * (total_cards - 1)) // 2 + (spacing * index)
-    return offset_x, start_y
+    x,y = calculate_card_position(4,5)
+    long_press(x, y)
 
 def check_my_cards():
     drag_and_drop(screen_x + 300, screen_y + 800, screen_x + 100,  screen_y + 800)
@@ -49,27 +36,25 @@ def ready_to_play():
 def finish_my_turn():
     click(ready_to_play_button_x, ready_to_play_button_y)
 
-def take_pokemon_active_spot():
-    start_x = screen_x + 300
-    start_y = screen_y + 800
+def take_pokemon_active_spot(index, total_cards):
+    start_x, start_y = calculate_card_position(index, total_cards)
     end_x = active_spot_x
     end_y = active_spot_y
-    drag_and_drop(start_x, start_y, end_x, end_y)
+    drag_and_drop(start_x, start_y, end_x, end_y, waypoints=[(start_x, end_y)])
 
-def take_pokemon_bench(spot=1):
+def take_pokemon_bench(spot,index, total_cards):
     """
     ベンチの指定したスポットにポケモンを移動する
     spot: ベンチのスポット番号（1, 2, 3）
     """
-    start_x = screen_x + 300
-    start_y = screen_y + 800
+    start_x, start_y = calculate_card_position(index, total_cards)
     if spot == 1:
-        end_x, end_y = bench1_spot_x
+        end_x, end_y = bench1_spot_x, bench1_spot_y
     elif spot == 2:
-        end_x, end_y = bench2_spot_x
+        end_x, end_y = bench2_spot_x, bench2_spot_y
     elif spot == 3:
-        end_x, end_y = bench3_spot_x
-    drag_and_drop(start_x, start_y, end_x, end_y, waypoints=[(start_x, end_y)], )
+        end_x, end_y = bench3_spot_x, bench3_spot_y
+    drag_and_drop(start_x, start_y, end_x, end_y, waypoints=[(start_x, end_y)] )
 
 def attach_energy(pokemon_spot):
     """
@@ -95,12 +80,11 @@ def attach_energy(pokemon_spot):
     # ドラッグアンドドロップでエネルギーを移動
     drag_and_drop(start_x, start_y, end_x, end_y)
 
-def use_item():
-    start_x = screen_x + 300
-    start_y = screen_y + 800
+def use_item(index, total_cards):
+    start_x, start_y = calculate_card_position(index, total_cards)
     end_x = active_spot_x
     end_y = active_spot_y
-    drag_and_drop(start_x, start_y, end_x, end_y)
+    drag_and_drop(start_x, start_y, end_x, end_y, waypoints=[(start_x, end_y)])
 
 def use_ability(pokemon_spot):
     """
@@ -123,12 +107,11 @@ def use_ability(pokemon_spot):
     click(x, y + 100)
     
 
-def use_supporter():
-    start_x = screen_x + 300
-    start_y = screen_y + 800
+def use_supporter(index, total_cards):
+    start_x, start_y = calculate_card_position(index, total_cards)
     end_x = active_spot_x
     end_y = active_spot_y
-    drag_and_drop(start_x, start_y, end_x, end_y)
+    drag_and_drop(start_x, start_y, end_x, end_y, waypoints=[(start_x, end_y)])
 
 def use_attack(index=0, attacks=1):
     click(active_spot_x, active_spot_y)
@@ -147,34 +130,51 @@ def retreat(to="bench1"):
     time.sleep(0.1)
     click(to_x, to_y)
 
-def evolve_pokemon(spot="active"):
+def evolve_pokemon(spot,index, total_cards):
     """
     指定したスポットのポケモンを進化させる
     spot: "active", "bench1", "bench2", "bench3" などの文字列で指定
     """
-    start_x = screen_x + 300
-    start_y = screen_y + 800
+    start_x, start_y = calculate_card_position(index, total_cards)
     
     if spot == "active":
-        end_x, end_y = active_spot_x
+        end_x, end_y = active_spot_x, active_spot_y
     elif spot == "bench1":
-        end_x, end_y = bench1_spot_x
+        end_x, end_y = bench1_spot_x, bench1_spot_y
     elif spot == "bench2":
-        end_x, end_y = bench2_spot_x
+        end_x, end_y = bench2_spot_x, bench2_spot_y
     elif spot == "bench3":
-        end_x, end_y = bench3_spot_x
+        end_x, end_y = bench3_spot_x, bench3_spot_y
     drag_and_drop(start_x, start_y, end_x, end_y, waypoints=[(start_x, end_y)], )
 
-def calculate_card_position(index, total_cards, start_x, start_y, spacing=100):
+def calculate_card_position(index, total_cards):
     """
     手札内のカードの位置を計算する
     index: カードのインデックス（0から始まる）
     total_cards: 手札にあるカードの総数
-    start_x, start_y: 手札の基準位置
-    spacing: カード間の間隔
     """
+    screen_x = 1500
+    start_y = screen_y + 770
+    start_x_map = {
+        2: 105,
+        3: 100,
+        4: 102,
+        5: 94,
+        6: 96
+    }
+    spacing_map = {
+        2: 109 / (total_cards - 1),
+        3: 140 / (total_cards - 1),
+        4: 137 / (total_cards - 1),
+        5: 137 / (total_cards - 1),
+        6: 137 / (total_cards - 1),
+    }
+
+    spacing = spacing_map.get(total_cards, 137)  # 規定の枚数以外の場合はデフォルトの100
+    start_x = 5 + screen_x + start_x_map.get(total_cards, 95)
+
     # 手札のカードが中央に並ぶように配置を調整
-    offset_x = start_x - (spacing * (total_cards - 1)) // 2 + (spacing * index)
+    offset_x = start_x + spacing * index
     return offset_x, start_y
 
 def main():
@@ -189,24 +189,33 @@ def main():
     subparsers.add_parser("check_my_cards", help="Check my cards")
     subparsers.add_parser("ready_to_play", help="Ready to play")
     subparsers.add_parser("finish_my_turn", help="Finish my turn")
-    subparsers.add_parser("take_pokemon_active_spot", help="Take Pokemon active spot")
+    # subparsers.add_parser("take_pokemon_active_spot", help="Take Pokemon active spot")
+    take_pokemon_active_spot_parser = subparsers.add_parser("take_pokemon_active_spot", help="Take Pokemon active spot")
+    take_pokemon_active_spot_parser.add_argument("index", type=int, default=0, help="Specify the index of the card to take")
+    take_pokemon_active_spot_parser.add_argument("total_cards", type=int, default=1, help="Specify the total number of cards in hand")
     take_pokemon_bench_parser = subparsers.add_parser("take_pokemon_bench", help="Take Pokemon bench spot")
     take_pokemon_bench_parser.add_argument("spot", type=int, choices=[1, 2, 3], help="Specify the bench spot to take Pokemon (1, 2, 3)")
+    take_pokemon_bench_parser.add_argument("index", type=int, default=0, help="Specify the index of the card to take")
+    take_pokemon_bench_parser.add_argument("total_cards", type=int, default=1, help="Specify the total number of cards in hand")
     attach_energy_parser = subparsers.add_parser("attach_energy", help="Attach energy to specified spot")
     attach_energy_parser.add_argument("pokemon_spot", choices=["active", "bench1", "bench2","bench3"], help="Specify the spot to attach energy (active, bench1, bench2, bench3, ...)")
-    subparsers.add_parser("use_item", help="Use an item")
+    use_item_parser = subparsers.add_parser("use_item", help="Use an item")
+    use_item_parser.add_argument("index", type=int, default=0, help="Specify the index of the item to use")
+    use_item_parser.add_argument("total_cards", type=int, default=1, help="Specify the total number of cards in hand")
     use_ability_parser = subparsers.add_parser("use_ability", help="Use an ability")
     use_ability_parser.add_argument("pokemon_spot", choices=["active", "bench1", "bench2", "bench3"], help="Specify the spot to use ability (active, bench1, bench2, bench3, ...)")
-    subparsers.add_parser("use_supporter", help="Use a supporter")
+    use_supporter_parser = subparsers.add_parser("use_supporter", help="Use a supporter")
+    use_supporter_parser.add_argument("index", type=int, default=0, help="Specify the index of the supporter to use")
+    use_supporter_parser.add_argument("total_cards", type=int, default=1, help="Specify the total number of cards in hand")
     subparsers.add_parser("use_attack", help="Use an attack")
     use_attack_parser = subparsers.add_parser("use_attack", help="Use an attack")
     use_attack_parser.add_argument("index", type=int, default=0, help="Specify the index of the attack to use")
     use_attack_parser.add_argument("attacks", type=int, default=1, help="Specify the number of attacks to use")
     subparsers.add_parser("retreat", help="Retreat active Pokemon")
-    # subparsers.add_parser("evolve_pokemon", help="Evolve active Pokemon")
     evolve_pokemon_parser = subparsers.add_parser("evolve_pokemon", help="Evolve Pokemon")
     evolve_pokemon_parser.add_argument("spot", choices=["active", "bench1", "bench2","bench3"], help="Specify the bench spot to evolve Pokemon (1, 2, 3)")
-
+    evolve_pokemon_parser.add_argument("index", type=int, default=0, help="Specify the index of the card to evolve")
+    evolve_pokemon_parser.add_argument("total_cards", type=int, default=1, help="Specify the total number of cards in hand")
 
     # 引数を解析
     args = parser.parse_args()
@@ -221,23 +230,23 @@ def main():
     elif args.action == "finish_my_turn":
         finish_my_turn()
     elif args.action == "take_pokemon_active_spot":
-        take_pokemon_active_spot()
+        take_pokemon_active_spot(args.index, args.total_cards)
     elif args.action == "take_pokemon_bench":
-        take_pokemon_bench(args.spot)
+        take_pokemon_bench(args.spot, args.index, args.total_cards)
     elif args.action == "attach_energy":
         attach_energy(args.pokemon_spot)
     elif args.action == "use_item":
-        use_item()
+        use_item(args.index, args.total_cards)
     elif args.action == "use_ability":
         use_ability(args.pokemon_spot)
     elif args.action == "use_supporter":
-        use_supporter()
+        use_supporter(args.index, args.total_cards)
     elif args.action == "use_attack":
         use_attack(args.index, args.attacks)
     elif args.action == "retreat":
         retreat()
     elif args.action == "evolve_pokemon":
-        evolve_pokemon(args.spot)
+        evolve_pokemon(args.spot, args.index, args.total_cards)
     else:
         print("Invalid action. Use -h for help.")
 

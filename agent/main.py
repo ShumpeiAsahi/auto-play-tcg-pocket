@@ -1,5 +1,5 @@
 import time
-from actions.screen_recognition import capture_screen, extract_and_process_region_for_text, recognize_text  # 画像認識系をscreen_recognitionに移動
+from actions.screen_recognition import capture_screen, extract_and_process_region_for_text, recognize_text
 from domains.battle import Battle
 from domains.field import BattleField
 from domains.player import Opponent, Player
@@ -7,13 +7,11 @@ from domains.player import Opponent, Player
 # バトルとプレイヤーの初期化
 battle = Battle(first_player="player")
 player = Player(name="自分")
-oppnent = Opponent(name="相手")
+opponent = Opponent(name="相手")
 battle_field = BattleField()
 
 def waiting():
-    """対戦相手を探している状態の処理"""
-    print("Waiting for opponent...")
-    # 必要ならばこの状態での処理を追加
+    print("Waiting ...")
 
 def init_battle(is_player_first):
     """対戦開始の初期化処理"""
@@ -24,45 +22,44 @@ def init_battle(is_player_first):
     battle_field = BattleField()  # バトルフィールドの再初期化
     print(f"Battle initialized. Player goes first: {is_player_first}")
 
+def setup_battlefield():
+    """バトル場の設定"""
+    print("Setting up battlefield...")
+    # 手札の確認し、Playerのhandsを更新する
+    # 手札のたねポケモンをバトル場に出す
+    # 手札にたねポケモンがある場合、ベンチに出す
 
 def my_turn():
     """自分のターンの処理"""
     print("Executing my turn...")
-    # 戦場の情報を更新し、アクションを実行するための手順をここで記述します
-    # 例：エネルギーのアタッチ、サポート・アイテムの使用、特性やわざの使用など
-    # player.attach_energy() や player.use_support() などのメソッドを使う
 
 def main():
-    screenshot = capture_screen()
-    state = detect_state(screenshot)
-    if state == "waiting":
-        waiting()
-    elif state == "init_battle_player_first":
-        init_battle(is_player_first=True)
-    elif state == "init_battle_opponent_first":
-        init_battle(is_player_first=False)
-    elif state == "my_turn":
-        my_turn()
-    else:
-        print("Unknown state detected")
-    # """メインの処理ループ"""
-    # while True:
-    #     screenshot = capture_screen()
-    #     state = detect_state(screenshot)
+    battle_started = False  # バトルが開始されたかどうか
+    setting_up = False      # バトル場の設定中かどうか
 
-    #     if state == "waiting":
-    #         waiting()
-    #     elif state == "init_battle_player_first":
-    #         init_battle(is_player_first=True)
-    #     elif state == "init_battle_opponent_first":
-    #         init_battle(is_player_first=False)
-    #     elif state == "my_turn":
-    #         my_turn()
-    #     else:
-    #         print("Unknown state detected")
+    while True:
+        screenshot = capture_screen()
+        state = detect_state(screenshot, battle_started=battle_started, setting_up=setting_up)
 
-    #     # 4. 一定時間待機して次のスクリーンショット取得まで待つ
-    #     time.sleep(1)  # 1秒ごとにチェック（必要に応じて調整）
+        if state == "waiting":
+            waiting()
+        elif state == "init_battle_player_first":
+            init_battle(is_player_first=True)
+            battle_started = True
+            setting_up = True
+        elif state == "init_battle_opponent_first":
+            init_battle(is_player_first=False)
+            battle_started = True
+            setting_up = True
+        elif state == "setting_up":
+            print("Setting up battlefield...")
+            setting_up = False
+        elif state == "my_turn":
+            my_turn()
+        else:
+            print("Unknown state detected")
+
+        time.sleep(1)  # 1秒ごとにチェック（必要に応じて調整）
 
 def detect_state(screenshot, battle_started=False, setting_up=False):
     """現在のゲームの状態を検出する
@@ -70,12 +67,13 @@ def detect_state(screenshot, battle_started=False, setting_up=False):
     Args:
         screenshot: スクリーンショット画像
         battle_started (bool): バトルがすでに始まっているかどうかのフラグ
+        setting_up (bool): バトル場の設定中かどうかのフラグ
     """
     # バトルがまだ始まっていない場合のみ、初期テキストを確認
     if not battle_started:
-        init_text_screenshot = extract_and_process_region_for_text(screenshot, 170, 270, 240, 305)
+        init_text_screenshot = extract_and_process_region_for_text(screenshot, 208, 187, 240, 209)
         init_text = recognize_text(init_text_screenshot, 'init_text.png')
-
+        print(init_text)
         # 「先攻」または「後攻」の文字を確認して、バトル開始の状態を検出
         if "先攻" in init_text:
             return "init_battle_player_first"
@@ -84,7 +82,7 @@ def detect_state(screenshot, battle_started=False, setting_up=False):
         else:
             return "waiting"
     
-    # バトルが始まっている場合、たねポケモンをバトル場に出してくださいと表示されるまで待つ
+    # バトルが始まっていて、設定中の状態を確認
     if battle_started and setting_up:
         setup_text_screenshot = extract_and_process_region_for_text(screenshot, 100, 200, 500, 250)
         setup_text = recognize_text(setup_text_screenshot, 'setup_text.png')
@@ -93,7 +91,6 @@ def detect_state(screenshot, battle_started=False, setting_up=False):
             return "setting_up"
         else:
             return "waiting"
-
 
     # バトルが始まっている場合、スクリーンショットから現在のターンを検出
     my_turn_text_screenshot = extract_and_process_region_for_text(screenshot, 100, 200, 500, 250)
